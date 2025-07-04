@@ -1,7 +1,6 @@
 import java.util.ArrayDeque;
 import java.util.Objects;
 import java.util.Queue;
-import java.util.Stack;
 
 /**
  * Binary Search Tree（二叉搜索树，简称 BST）。
@@ -16,7 +15,6 @@ import java.util.Stack;
  */
 public class BST<T extends Comparable<T>> {
     private Node<T> root;
-    private int size; // 树的节点数量
 
     /**
      * 插入值到二叉搜索树中
@@ -29,10 +27,8 @@ public class BST<T extends Comparable<T>> {
      * @date : 2025/7/3 21:36
      */
     private Node<T> insert(Node<T> node, T val) {
-        if (node == null) {
-            ++size;
+        if (node == null)
             return new Node<>(val, 1);
-        }
 
         if (val.compareTo(node.val) == 0)
             node.count++;
@@ -41,12 +37,17 @@ public class BST<T extends Comparable<T>> {
         else if (val.compareTo(node.val) > 0)
             node.right = insert(node.right, val);
 
+        node.size = 1;
+        if (node.left != null)
+            node.size += node.left.size;
+        if (node.right != null)
+            node.size += node.right.size;
+
         return node;
     }
 
     public void insert(T val) {
         if (root == null) {
-            ++size;
             root = new Node<>(val, 1);
         } else
             insert(root, val);
@@ -58,25 +59,41 @@ public class BST<T extends Comparable<T>> {
      * @param k 第 k 个元素（1 表示最小元素）
      * @return 第 k 小的元素值；如果 k 超出范围，返回 null
      * @since 1.0
+     * @throws IndexOutOfBoundsException 查询不在合法范围[1,size]
      * @author Tomatos
      * @date 2025/7/3 21:39
+     * @timeComplexity O(h)，其中 h 为树的高度
      */
     public T queryKth(int k) {
-        Stack<Node<T>> stack = new Stack<>();
-        Node<T> node = root;
-        while (node != null || !stack.isEmpty()) {
-            while (node != null) {
-                stack.push(node);
-                node = node.left;
-            }
+        checkInRange(k);
 
-            node = stack.pop();
-            --k;
-            if (k == 0)
-                return node.val;
-            node = node.right;
+        return queryKth(root, k);
+    }
+
+    private T queryKth(Node<T> node, int k) {
+        if (node.left != null) {
+            // 左子树大小 >= k, 说明查询的元素在左子树
+            if (node.left.size >= k)
+                return queryKth(node.left, k);
+
+            // 去掉比k小的节点
+            k -= node.left.size;
         }
-        return null;
+
+        if (k != 1)
+            return queryKth(node.right, k - 1);
+
+        return node.val;
+    }
+
+    /**
+     * 检查值是否在合法范围内
+     *
+     */
+    private void checkInRange(int v) {
+        if (v < 1 || v > root.size) {
+            throw new IndexOutOfBoundsException(v + " is out of valid range [1, " + root.size + "]");
+        }
     }
 
     /**
@@ -100,13 +117,18 @@ public class BST<T extends Comparable<T>> {
         else if (node.count > 1)
             --node.count;
         else {
-            --size;
             Node<T> newSubTreeRoot = mergeSubtrees(node.left, node.right);
             if (root == node)
                 root = newSubTreeRoot;
 
             return newSubTreeRoot;
         }
+
+        node.size = 1;
+        if (node.left != null)
+            node.size += node.left.size;
+        if (node.right != null)
+            node.size += node.right.size;
 
         return node;
     }
@@ -124,7 +146,7 @@ public class BST<T extends Comparable<T>> {
      * @date : 2025/7/3 21:29
      */
     public int size() {
-        return size;
+        return root.size;
     }
 
     /**
@@ -138,10 +160,14 @@ public class BST<T extends Comparable<T>> {
         if (rSubtreeRoot == null)
             return lSubtreeRoot;
 
+        if (lSubtreeRoot == null)
+            return rSubtreeRoot;
+
         if (rSubtreeRoot.left != null)
             rSubtreeRoot.right = mergeSubtrees(rSubtreeRoot.left, rSubtreeRoot.right);
 
         rSubtreeRoot.left = lSubtreeRoot;
+        rSubtreeRoot.size += lSubtreeRoot.size;
         return rSubtreeRoot;
     }
 
@@ -260,6 +286,7 @@ public class BST<T extends Comparable<T>> {
         T val;
         Node<T> left, right;
         int count;
+        int size = 1; // 以当前节点为根的子树的大小
 
         public Node(T val, int count) {
             this.val = val;
